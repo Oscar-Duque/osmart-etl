@@ -1,19 +1,4 @@
 import pandas as pd
-
-# def tag_issue(row):
-#     # import pdb; pdb.set_trace()
-#     if row["efectivo_in"] > 0 and row["tarjeta_in"] == 0 and row["pagado"] > row["total"]:
-#         return "overpaid cash"
-#     elif row["tarjeta_in"] > 0 and row["efectivo_in"] == 0 and row["pagado"] > row["total"]:
-#         return "overpaid card"
-#     elif row["cobranza_aplicada"] > 0 and row["efectivo_in"] == 0 and row["tarjeta_in"] == 0:
-#     #     return "only cobranza"
-#     elif row["pagado"] == 0:
-#         return "no payment recorded"
-#     elif row["egresos"] > row["efectivo_in"] + row["tarjeta_in"] + row["otros_in"]:
-#         return "refund_too_big"
-#     else:
-#         return "unknown mismatch"
     
 def tag_issue(row):
     # import pdb; pdb.set_trace()
@@ -33,18 +18,6 @@ def clean_and_standardize_legacy(df, store):
     df["egresos"] = df["egresos"].fillna(0)
     df["cobranza_aplicada"] = df["cobranza_aplicada"].fillna(0)
     
-    # # Edge Case 1. Sale exists in ventas but not in flujo → DELETE, but keep a log
-    # dropped_df = df[df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"] == 0].copy()
-    # df = df[df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"] > 0].copy()
-    
-    # # Edge Case 2. Refund is too big, if egresos is more than total ingresos (cash + card + other), ignore the egreso
-    # total_ingresos = (df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"])
-    # df.loc[df["egresos"] > total_ingresos, "egresos"] = 0
-    
-    # # Edge Case 3. The efectivo amount is correct, but sometimes a random cobranza_aplicada is associated to the sale and shouldn't be
-    # # Fix: Ignore cobranza_aplicada if efectivo already covers the total
-    # df.loc[df["efectivo_in"] >= df["total"].round(2), "cobranza_aplicada"] = 0
-    
     # Edge Case 1. Sale exists in ventas but not in flujo → DELETE, but keep a log
     dropped_df = df[df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"] == 0].copy()
     df = df[df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"] > 0].copy()
@@ -60,8 +33,6 @@ def clean_and_standardize_legacy(df, store):
     df.drop(columns=["resto"], inplace=True)
     
     # QA columns
-    # df["pagado"] = df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"] + df["cobranza_aplicada"] - df["egresos"]
-    # df["pagado"] = df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"]
     df["pagado"] = df["efectivo"] + df["tarjeta"] + df["otros"]
     df["pago_completo"] = df["pagado"].round(2) == df["total"].round(2)
     df["pago_excedente"] = df["pagado"].round(2) > df["total"].round(2)
@@ -80,8 +51,6 @@ def clean_and_standardize_legacy(df, store):
     column_map = {
         "venta": "ven_id",
         "total": "total_venta"
-        # "tarjeta_in": "tarjeta",
-        # "efectivo_in": "efectivo"
     }
     df.rename(columns = column_map, inplace=True)
     
