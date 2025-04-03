@@ -1,0 +1,6 @@
+config.json
+config.json.bkp
+mysql-connector-java-5.1.49.jar
+data/*
+output/*
+__pycache__/
