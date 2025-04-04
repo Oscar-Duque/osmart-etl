@@ -1,7 +1,6 @@
 import pandas as pd
     
 def tag_issue(row):
-    # import pdb; pdb.set_trace()
     if row["efectivo"] > 0 and row["tarjeta"] == 0 and row["pagado"] > row["total"]:
         return "overpaid cash"
     elif row["tarjeta"] > 0 and row["efectivo"] == 0 and row["pagado"] > row["total"]:
@@ -14,10 +13,6 @@ def tag_issue(row):
         return "unknown mismatch"
 
 def clean_and_standardize_legacy(df, store):
-    df.columns = [col.lower() for col in df.columns]
-    df["egresos"] = df["egresos"].fillna(0)
-    df["cobranza_aplicada"] = df["cobranza_aplicada"].fillna(0)
-    
     # Edge Case 1. Sale exists in ventas but not in flujo → DELETE, but keep a log
     dropped_df = df[df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"] == 0].copy()
     df = df[df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"] > 0].copy()
@@ -58,7 +53,7 @@ def clean_and_standardize_legacy(df, store):
     df["tienda"] = store
     df["otros"] = df["otros_in"] + df["cobranza_aplicada"]
 
-    cleaned_df = df.drop(columns=["pago_completo", "pago_excedente", "pago_incompleto", "otros_in", "cobranza_aplicada", "egresos", "pagado", "fecha", "usuhora", "tarjeta_in", "tarjeta_in"])
+    cleaned_df = df[["ven_id", "fecha_hora", "caja", "usuario", "efectivo", "tarjeta", "otros", "total_venta"]]
 
     return {
         "clean": cleaned_df,

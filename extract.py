@@ -20,17 +20,17 @@ def extract_legacy(config):
                 
                 query = """
                     SELECT 
-                    v.VENTA,
-                    v.F_EMISION AS 'Fecha',
-                    v.USUHORA,
-                    v.Caja,
-                    v.USUARIO,
-                    v.importe + v.IMPUESTO AS 'Total',
+                    v.VENTA as venta,
+                    v.F_EMISION AS fecha,
+                    v.USUHORA AS susuhora,
+                    v.Caja AS caja,
+                    v.USUARIO AS usuario,
+                    v.importe + v.IMPUESTO AS total,
                     -- Real payment breakdown from flujo
                     SUM(CASE WHEN f.concepto2 = 'TAR' AND f.ING_EG = 'I' THEN f.importe ELSE 0 END) AS tarjeta_in,
                     SUM(CASE WHEN f.concepto2 = 'EFE' AND f.ING_EG = 'I' THEN f.importe ELSE 0 END) AS efectivo_in,
                     SUM(CASE WHEN f.concepto2 NOT IN ('EFE', 'TAR') AND f.ING_EG = 'I' THEN f.importe ELSE 0 END) AS otros_in,
-                    c.importe AS cobranza_aplicada,
+                    COALESCE(c.importe, 0) AS cobranza_aplicada,
                     SUM(CASE WHEN f.concepto2 <> 'TARJ' AND f.ING_EG = 'E' THEN f.importe ELSE 0 END) AS egresos
                 FROM ventas v
                 LEFT JOIN flujo f ON v.venta = f.venta
@@ -44,8 +44,7 @@ def extract_legacy(config):
                 """
                         
                 cursor.execute(query)
-                # import pdb; pdb.set_trace()
-                column_names = ["VENTA", "Fecha", "USUHORA", "Caja", "USUARIO", "Total", "Tarjeta_in", "Efectivo_in", "Otros_in", "Cobranza_aplicada", "Egresos"]
+                column_names = ["venta", "fecha", "usuhora", "caja", "usuario", "total", "tarjeta_in", "efectivo_in", "otros_in", "cobranza_aplicada", "egresos"]
                 df = pd.DataFrame(cursor.fetchall(), columns = column_names)
                 df['source'] = f"{config['name']}:{database}"
                 df['extracted_at'] = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
