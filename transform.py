@@ -53,7 +53,7 @@ def clean_and_standardize_legacy(df, store):
     df["tienda"] = store
     df["otros"] = df["otros_in"] + df["cobranza_aplicada"]
 
-    cleaned_df = df[["ven_id", "fecha_hora", "caja", "usuario", "efectivo", "tarjeta", "otros", "total_venta"]]
+    cleaned_df = df[["ven_id", "fecha_hora", "caja", "usuario", "efectivo", "tarjeta", "otros", "total_venta", "source", "extracted_at"]]
 
     return {
         "clean": cleaned_df,
