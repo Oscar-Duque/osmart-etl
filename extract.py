@@ -3,7 +3,8 @@ import pandas as pd
 
 def extract_legacy(config):
     source_data = []
-    
+    conn = None
+
     try:
         conn = jaydebeapi.connect(
             "com.mysql.jdbc.Driver",
@@ -15,7 +16,7 @@ def extract_legacy(config):
 
         for database in config["databases"]:
             try:
-                print(f"🔄 Switching to database: {database}")
+                print(f"🔄 Switching to database: {database}", end="", flush=True)
                 cursor.execute(f"USE `{database}`")
                 
                 query = """
@@ -51,9 +52,9 @@ def extract_legacy(config):
                 
                 if not df.empty:
                     source_data.append(df)
-                    print(f"✅ Extracted {len(df)} rows from {database}")
+                    print(f" ✅ Extracted {len(df)} rows from {database}")
                 else:
-                    print(f"⚠️ No data found in {database}")
+                    print(f" ⚠️ No data found in {database}")
 
             except Exception as e:
                 print(f"❗️ Error processing {database}: {e}")
