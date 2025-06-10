@@ -50,10 +50,10 @@ def clean_and_standardize_legacy(df, store):
     df.rename(columns = column_map, inplace=True)
     
     # Drop data cleaning columns from results
-    df["tienda"] = store
+    # df["tienda"] = store
     df["otros"] = df["otros_in"] + df["cobranza_aplicada"]
 
-    cleaned_df = df[["ven_id", "fecha_hora", "caja", "usuario", "efectivo", "tarjeta", "otros", "total_venta"]]
+    cleaned_df = df[["ven_id", "tienda", "fecha_hora", "caja", "usuario", "efectivo", "tarjeta", "otros", "total_venta", "source_db", "source_system", "extracted_at"]]
 
     return {
         "clean": cleaned_df,
