@@ -18,10 +18,10 @@ engine = create_engine(
 )
 reset_ventas_limpias(engine)
 
-# Reset CSV files before starting (delete old files)
-for filename in ["data/payment_issues.csv", "data/dropped_sales.csv"]:
-    if os.path.exists(filename):
-        os.remove(filename)
+# Reset CSV file for payment issues
+payment_issues_file = "data/payment_issues.csv"
+if os.path.exists(payment_issues_file):
+    os.remove(payment_issues_file)
 
 qa_header_needed = True
 dropped_header_needed = True
@@ -60,18 +60,18 @@ for source in CONFIG["mybusiness_sources"]:
             df_dict["qa"].to_csv("data/payment_issues.csv", 
                 index=False, 
                 mode='a',
-                header=["venta", "fecha", "usuhora", "caja", "usuario", "total", "tarjeta_in", "efectivo_in", "otros_in", "cobranza_aplicada", "egresos", "tienda", "source_db", "source_system", "extracted_at"] if qa_header_needed else False
+                header=qa_header_needed
             )
             qa_header_needed = False
         
         # Append dropped data to CSV
-        if not df_dict["dropped"].empty:
-            df_dict["dropped"].to_csv("data/dropped_sales.csv", 
-                index=False, 
-                mode='a',
-                header=["venta", "fecha", "usuhora", "caja", "usuario", "total", "tarjeta_in", "efectivo_in", "otros_in", "cobranza_aplicada", "egresos", "tienda", "source_db", "source_system", "extracted_at"] if dropped_header_needed else False
-            )
-            dropped_header_needed = False
+        # if not df_dict["dropped"].empty:
+        #     df_dict["dropped"].to_csv("data/dropped_sales.csv", 
+        #         index=False, 
+        #         mode='a',
+        #         header=["venta", "fecha", "usuhora", "caja", "usuario", "total", "tarjeta_in", "efectivo_in", "otros_in", "cobranza_aplicada", "egresos", "tienda", "source_db", "source_system", "extracted_at"] if dropped_header_needed else False
+        #     )
+        #     dropped_header_needed = False
 
     print(f"✅ Clean data written to ventas_limpias for {source['name']}")
     # else:
