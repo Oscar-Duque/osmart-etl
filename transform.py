@@ -15,10 +15,6 @@ def tag_issue(row):
         return "unknown mismatch"
 
 def clean_and_standardize_legacy(df, store):
-    # # Edge Case 1. Sale exists in ventas but not in flujo → DELETE, but keep a log
-    # dropped_df = df[df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"] == 0].copy()
-    # df = df[df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"] > 0].copy()
-    
     # Flag rows where no flujo is present
     df["no_flujo"] = (df["efectivo_in"] + df["tarjeta_in"] + df["otros_in"] == 0)
     

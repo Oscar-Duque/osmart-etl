@@ -2,9 +2,6 @@ import jaydebeapi
 import pandas as pd
 
 def extract_legacy(config):
-    # source_data = []
-    # conn = None
-
     try:
         conn = None
         conn = jaydebeapi.connect(
@@ -48,14 +45,12 @@ def extract_legacy(config):
                 cursor.execute(query)
                 column_names = ["venta", "fecha", "usuhora", "caja", "usuario", "total", "tarjeta_in", "efectivo_in", "otros_in", "cobranza_aplicada", "egresos"]
                 df = pd.DataFrame(cursor.fetchall(), columns = column_names)
-                # df['source'] = f"{config['name']}:{database}"
                 df["tienda"] = config['store']
                 df['source_db'] = database
                 df['source_system'] = "mybusiness"
                 df['extracted_at'] = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
                 
                 if not df.empty:
-                    # source_data.append(df)
                     print(f" ✅ Extracted {len(df)} rows from {database}")
                     yield df
                 else:
@@ -71,11 +66,3 @@ def extract_legacy(config):
         if conn:
             conn.close()
             print("🔌 Connection closed")
-
-    # if source_data:
-    #     merged_df = pd.concat(source_data, ignore_index=True)
-    #     return merged_df
-    # else:
-    #     print("⚠️ No data extracted from any database")
-    #     return pd.DataFrame()  # Return an empty DataFrame if no data
-    
