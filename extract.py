@@ -1,5 +1,7 @@
 import jaydebeapi
 import pandas as pd
+from sqlalchemy import create_engine
+from sqlalchemy import text
 
 def extract_legacy(config):
     try:
@@ -45,3 +47,42 @@ def extract_legacy(config):
         if conn:
             conn.close()
             print("🔌 Connection closed")
+            
+def extract_sicar(config, batch_dates):
+    try:
+        # Use SQLAlchemy to connect to modern MySQL
+        conn_str = f"mysql+pymysql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
+        engine = create_engine(conn_str)
+        conn = engine.connect()
+        
+        # Load SICAR sales query from file
+        with open("db/extract_sicar_sales.sql", "r") as f:
+            query =  text(f.read())
+        
+        for start_date, end_date in batch_dates:
+            try:
+                print(f"🔄 Extracting SICAR sales for {config['store']} from {start_date} to {end_date}...", end="", flush=True)
+                df = pd.read_sql_query(
+                    query,
+                    conn,
+                    params={"start_date": start_date, "end_date": end_date}
+                )
+
+                df["tienda"] = config["store"]
+                df["source_db"] = config["database"]
+                df["source_system"] = "sicar"
+                df["extracted_at"] = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                if not df.empty:
+                    print(f" ✅ Extracted {len(df)} rows")
+                    yield df
+                else:
+                    print(f" ⚠️ No data found in batch {start_date} to {end_date}")
+            except Exception as e:
+                print(f"❗️ Error extracting batch {start_date} to {end_date} for {config['store']}: {e}")
+    except Exception as conn_err:
+        print(f"❗️ Database connection error for SICAR {config['store']} at {config['host']}::{conn_err}")
+    finally:
+        if conn:
+            conn.close()
+            print("🔌 SICAR connection closed")
