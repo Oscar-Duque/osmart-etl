@@ -39,33 +39,3 @@ def insert_on_conflict_update(table, conn, keys, data_iter):
     result = conn.execute(stmt)
     return result.rowcount
 
-# def insert_chunk_with_upsert(df, engine, table_name):
-#     if df.empty:
-#         return  # Nothing to insert
-    
-#     # Build INSERT ... ON DUPLICATE KEY UPDATE query
-#     insert_query = f"""
-#     INSERT INTO {table_name} (
-#         ven_id, tienda, fecha_hora, caja, usuario, efectivo, tarjeta, otros, total_venta, source, extracted_at
-#     )
-#     VALUES ({','.join(['%s'] * 10)})
-#     ON DUPLICATE KEY UPDATE
-#         fecha_hora = VALUES(fecha_hora),
-#         caja = VALUES(caja),
-#         usuario = VALUES(usuario),
-#         efectivo = VALUES(efectivo),
-#         tarjeta = VALUES(tarjeta),
-#         otros = VALUES(otros),
-#         total_venta = VALUES(total_venta),
-#         source = VALUES(source),
-#         extracted_at = VALUES(extracted_at);
-#     """
-
-#     # Convert DataFrame rows to list of tuples
-#     rows = df[[
-#         "ven_id", "tienda", "fecha_hora", "caja", "usuario", "efectivo", "tarjeta", "otros", "total_venta", "source", "extracted_at"
-#     ]].to_records(index=False).tolist()
-
-#     # Execute in a transaction
-#     with engine.begin() as conn:
-#         conn.execute(text(insert_query), rows)

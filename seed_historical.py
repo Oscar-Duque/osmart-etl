@@ -9,7 +9,7 @@ import os
 CONFIG = json.load(open("config.json"))
 
 # Create connection to the cleaned data database (osmart_data)
-db_config = CONFIG["clean_data_db"]
+db_config = CONFIG["analytics_db"]
 engine = create_engine(
     f"mysql+pymysql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
 )

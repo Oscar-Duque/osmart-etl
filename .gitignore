@@ -5,3 +5,5 @@ mysql-connector-java-5.1.49.jar
 data/*
 output/*
 __pycache__/
+sicar.sql
+update_clean_data.log
