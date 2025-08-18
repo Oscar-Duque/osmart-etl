@@ -1,0 +1,1 @@
+SELECT MAX(dt) FROM stock_points WHERE store_id = :store_id
