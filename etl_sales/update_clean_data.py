@@ -20,7 +20,7 @@ console_handler.setLevel(logging.INFO)
 # Root logger config
 logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
 
-CONFIG = json.load(open("config.json"))
+CONFIG = json.load(open("../config.json"))
 
 # Create connection to the cleaned data database (osmart_data)
 db_config = CONFIG["analytics_db"]

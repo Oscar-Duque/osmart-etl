@@ -6,7 +6,7 @@ from db.db_helpers import reset_ventas_limpias, insert_on_conflict_update
 from sqlalchemy import create_engine
 import os
 
-CONFIG = json.load(open("config.json"))
+CONFIG = json.load(open("../config.json"))
 
 # Create connection to the cleaned data database (osmart_data)
 db_config = CONFIG["analytics_db"]

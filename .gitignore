@@ -6,4 +6,7 @@ data/*
 output/*
 __pycache__/
 sicar.sql
-update_clean_data.log
+*.log
+.ipynb_checkpoints/
+*.ipynb
+*.csv
