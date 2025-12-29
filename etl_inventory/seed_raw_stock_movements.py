@@ -5,7 +5,10 @@ from sqlalchemy import create_engine, text
 from pathlib import Path
 from extract import extract_stock_movements
 
-CONFIG = json.load(open("../config_testing.json"))
+SCRITP_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent   # osmart-etl/
+CONFIG_PATH  = PROJECT_ROOT / "config.json"
+CONFIG = json.load(open(CONFIG_PATH))
 
 # Create connection to the cleaned data database (osmart_data)
 db_config = CONFIG["analytics_db"]
@@ -14,7 +17,7 @@ engine = create_engine(
 )
 
 # Delete and create raw_stock_movements table
-raw_stock_movements_sql = Path("sql/create_raw_stock_movements.sql").read_text(encoding="utf-8")
+raw_stock_movements_sql = Path(SCRITP_DIR / "sql/create_raw_stock_movements.sql").read_text(encoding="utf-8")
 raw_stock_movements_queries = raw_stock_movements_sql.split(';')
 
 with engine.begin() as conn:
@@ -23,7 +26,7 @@ with engine.begin() as conn:
             conn.execute(text(query))
 
 # Restart etl progress tracker for all stores
-reset_last_raw_ts_sql = Path("sql/reset_last_raw_ts.sql").read_text(encoding="utf-8")
+reset_last_raw_ts_sql = Path(SCRITP_DIR / "sql/reset_last_raw_ts.sql").read_text(encoding="utf-8")
 
 with engine.begin() as conn:
     conn.execute(text(reset_last_raw_ts_sql))
@@ -67,8 +70,8 @@ for source in CONFIG["sicar_sources"]:
         )
 
     # 3. Set last_raw_ts to max 'fecha'
-    get_max_raw_ts_sql = Path("sql/get_max_raw_ts.sql").read_text(encoding="utf-8")
-    set_last_raw_ts_sql = Path("sql/set_last_raw_ts.sql").read_text(encoding="utf-8")
+    get_max_raw_ts_sql = Path(SCRITP_DIR / "sql/get_max_raw_ts.sql").read_text(encoding="utf-8")
+    set_last_raw_ts_sql = Path(SCRITP_DIR / "sql/set_last_raw_ts.sql").read_text(encoding="utf-8")
         
     with engine.begin() as conn:
         max_fecha = conn.execute(

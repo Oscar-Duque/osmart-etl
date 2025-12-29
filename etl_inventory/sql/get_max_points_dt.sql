@@ -1,1 +1,1 @@
-SELECT MAX(dt) FROM stock_points WHERE store_id = :store_id
+SELECT MAX(point_date) FROM stock_points WHERE store_id = :store_id

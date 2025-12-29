@@ -1,7 +1,7 @@
 import pandas as pd
 from sqlalchemy import text, create_engine
 
-def extract_stock_movements(source, batch_dates):
+def extract_stock_movements(source, batch_dates, script_dir):
     conn = None
     
     try:
@@ -9,7 +9,7 @@ def extract_stock_movements(source, batch_dates):
         engine = create_engine(conn_str)
         conn = engine.connect()
     
-        with open("sql/extract_stock_movements.sql", "r") as f:
+        with open(script_dir / "sql/extract_stock_movements.sql", "r") as f:
             query = text(f.read())
     
         for start_date, end_date in batch_dates:

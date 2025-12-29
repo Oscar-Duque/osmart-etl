@@ -4,17 +4,24 @@ import numpy as np
 from pathlib import Path
 from sqlalchemy import create_engine, text
 from datetime import date, timedelta
+from stock_points_helpers import verify_stock_accuracy
+from dq_exclusions_csv import apply_exclusions_and_log
 
-CONFIG = json.load(open("../config_testing.json"))
+SCRITP_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent   # osmart-etl/
+CONFIG_PATH  = PROJECT_ROOT / "config.json"
+CONFIG = json.load(open(CONFIG_PATH))
+EXCLUSIONS_CSV = Path("dq_exclusions.csv")  # choose your path
+ABS_MAX = 1_000_000  # tune per business reality
 
-# Create connection to the cleaned data database (osmart_data)
+# Create connection to the analytics database (osmart_data)
 db_config = CONFIG["analytics_db"]
 engine = create_engine(
     f"mysql+pymysql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
 )
 
 # Delete and create stock_points table
-stock_pints_sql = Path("sql/create_stock_points.sql").read_text(encoding="utf-8")
+stock_pints_sql = Path(SCRITP_DIR / "sql/create_stock_points.sql").read_text(encoding="utf-8")
 stock_pints_queries = stock_pints_sql.split(';')
 
 with engine.begin() as conn:
@@ -23,7 +30,7 @@ with engine.begin() as conn:
             conn.execute(text(query))
             
 # Restart etl progress tracker for all stores
-reset_last_points_dt_sql = Path("sql/reset_last_points_dt.sql").read_text(encoding="utf-8")
+reset_last_points_dt_sql = Path(SCRITP_DIR / "sql/reset_last_points_dt.sql").read_text(encoding="utf-8")
 
 with engine.begin() as conn:
     conn.execute(text(reset_last_points_dt_sql))
@@ -32,13 +39,23 @@ for source in CONFIG["sicar_sources"]:
     print(f"🚀 Extracting historical raw stock movements data for {source['name']}")
     ## Aggregate raw stock movements into daily net changes per product and store.
     # Extract from raw logs
-    with open("sql/extract_filter_raw_stock_movemnts.sql", "r") as f:
+    with open(SCRITP_DIR / "sql/extract_filter_raw_stock_movements.sql", "r") as f:
         query = text(f.read())
 
     with engine.begin() as conn:
         df = pd.read_sql_query(query, conn, params={"store_id": source['store_id'],})
+        
+    # Filter & log exclusions (threshold-based)
+    df, flagged = apply_exclusions_and_log(
+        df=df,
+        store_id=source['store_id'],
+        csv_path=EXCLUSIONS_CSV,
+        abs_max=ABS_MAX
+    )
+    if flagged:
+        print(f"[DQ] Excluded {flagged} raw rows (manual or absurd absolute snapshots).")
     
-    print(f"Cleaning data...")    
+    print(f"Cleaning data...")
     # Ensure types
     df['fecha'] = pd.to_datetime(df['fecha'])
     # normalize flags
@@ -82,94 +99,20 @@ for source in CONFIG["sicar_sources"]:
     wide = (daily_net.pivot(index='art_id', columns='fecha', values='delta_cantidad')
                 .reindex(columns=cal)
                 .fillna(0)
-                    .astype(int))
+                .astype(int))
 
     # Initial stock vector
     eod = wide.cumsum(axis=1)
     start_stock = eod.shift(1, axis=1, fill_value=0).astype('int64')
 
     ### Verify calculated stock vs actual stock
-    ## Get current stock now and today's net movement from production
-    print(f"Extracting updated data to verify calculated stock for today vs actual stock...")
-    today = pd.Timestamp.now(tz="America/Mexico_City").normalize()
-    tomorrow = (today + pd.Timedelta(days=1))
-
-    # Connect to production db
-    # db_config = CONFIG["sicar_sources"][0]
-    prod_engine = create_engine(
-        f"mysql+pymysql://{source['user']}:{source['password']}@{source['host']}:{source['port']}/{source['database']}"
-    )
-
-    # a) current stock now from production
-    sql_stock_now = text("""
-        SELECT a.art_id, a.existencia AS stock_actual
-        FROM articulo a;
-    """)
-
-    # b) today's movements
-    with open("sql/extract_stock_movements.sql", "r") as f:
-        sql_today_events = text(f.read())
-
-    with prod_engine.begin() as conn:
-        prod_now = pd.read_sql_query(sql_stock_now, conn)
-        today_events = pd.read_sql_query(sql_today_events, conn, params={
-            "start_date": today.tz_localize(None), 
-            "end_date": tomorrow.tz_localize(None)
-        })
-        
-    print(f"Comparing calculated stock for today vs actual stock...")
-    # Ensure types
-    ev = today_events.copy()
-    ev['fecha'] = pd.to_datetime(ev['fecha'])
-    ev['is_absolute'] = ev['is_absolute'].fillna(0).astype(bool)
-    ev['delta_cantidad'] = pd.to_numeric(ev['delta_cantidad'], errors='coerce').fillna(0)
-    ev['abs_stock_after'] = pd.to_numeric(ev['abs_stock_after'], errors='coerce')
-    ev = ev.sort_values(['art_id','fecha'], kind='mergesort')
-
-    start_stock_today_calc = start_stock.loc[:, today.date()]
-
-    # Start-of-day calc as a Series
-    sod = start_stock_today_calc.copy()
-    if isinstance(sod, pd.DataFrame):
-        sod = sod.iloc[:, 0]  # ensure Series
-
-    # Simulate to NOW
-    sim_rows = []
-    for art_id, g in ev.groupby('art_id', sort=False):
-        running = int(sod.get(art_id, 0))  # default 0 if SKU not present
-        for _, r in g.iterrows():
-            if r['is_absolute']:
-                running = int(r['abs_stock_after']) if pd.notnull(r['abs_stock_after']) else 0
-            else:
-                running += int(r['delta_cantidad'])
-        sim_rows.append((art_id, running))
-    sim = pd.DataFrame(sim_rows, columns=['art_id','stock_sim_now'])
-
-    # SKUs with no events today: simulated NOW = start-of-day
-    missing_today = sod.index.difference(ev['art_id'].unique())
-    if len(missing_today) > 0:
-        sim = pd.concat([sim, pd.DataFrame({'art_id': missing_today, 'stock_sim_now': sod.loc[missing_today].astype(int).values})],
-                        ignore_index=True)
-        
-    # Compare to production
-    comp = (prod_now[['art_id','stock_actual']]
-            .merge(sim, on='art_id', how='outer')
-            .fillna({'stock_actual':0, 'stock_sim_now':0}))
-    comp['diff'] = comp['stock_sim_now'].astype(int) - comp['stock_actual'].astype(int)
-    comp.to_csv(f"output_{source['store_id']}_{source['store']}.csv")
-
-    summary = {
-        'total_skus': len(comp),
-        'mismatch_skus': int((comp['diff'] != 0).sum()),
-        'max_abs_diff': int(comp['diff'].abs().max()) if not comp.empty else 0
-    }
-    print(summary)
+    verify_stock_accuracy(source, start_stock, SCRITP_DIR)
 
     ## Load into sparse logs
     # Ensure clean labels & types
     cols = sorted(start_stock.columns)
     sod = start_stock[cols].fillna(0).astype('int64')
-    sod = sod.rename_axis(index='art_id', columns='dt')
+    sod = sod.rename_axis(index='art_id', columns='point_date')
     sod.columns = pd.to_datetime(sod.columns).normalize()
     sod = sod.sort_index(axis=1).astype('int64')
     
@@ -181,12 +124,32 @@ for source in CONFIG["sicar_sources"]:
     stacked_vals = sod.stack()                 # int64
     stacked_mask = change_mask.stack()         # bool
     points = stacked_vals[stacked_mask]        # int64
-    points = points.rename('stock_open').reset_index()  # cols: art_id, dt, stock_open
+    points = points.rename('sod_stock').reset_index()  # cols: art_id, point_date, sod_stock
 
-    # dt as DATE objects for MySQL
-    points['dt'] = pd.to_datetime(points['dt']).dt.date
+    # point_date as DATE objects for MySQL
+    points['point_date'] = pd.to_datetime(points['point_date']).dt.date
     points['store_id'] = source['store_id']
-    points = points[['store_id','art_id','dt','stock_open']]
+    points = points[['store_id','art_id','point_date','sod_stock']]
+    
+    INT_MIN, INT_MAX = -(2**31), 2**31 - 1
+
+    # DEBUG: Basic sanity on range
+    minv, maxv = int(points['sod_stock'].min()), int(points['sod_stock'].max())
+    print(f"[DEBUG] sod_stock min={minv}, max={maxv}, rows={len(points)}")
+
+    bad = points[(points['sod_stock'] < INT_MIN) | (points['sod_stock'] > INT_MAX)]
+    if not bad.empty:
+        print(f"[ERROR] {len(bad)} rows out of MySQL INT range. Showing a few:")
+        print(bad.head(10).to_string(index=False))
+
+        # help trace back: which SKU/dates blow up?
+        offenders = (bad.groupby('art_id')['sod_stock']
+                    .agg(['min', 'max', 'count'])
+                    .sort_values('count', ascending=False))
+        print(offenders.head(10))
+
+    # DEBUG: Save data to csv to inspect
+    points.to_csv(f"output_{source['store_id']}_{source['store']}_points.csv")
 
     # 5) bulk-insert via temp table (idempotent)
     with engine.begin() as conn:
@@ -194,25 +157,26 @@ for source in CONFIG["sicar_sources"]:
             CREATE TEMPORARY TABLE _init_points (
               store_id   INT NOT NULL,
               art_id     INT NOT NULL,
-              dt         DATE NOT NULL,
-              stock_open INT NOT NULL,
-              PRIMARY KEY (store_id, art_id, dt)
+              point_date DATE NOT NULL,
+              sod_stock  BIGINT NOT NULL,
+              PRIMARY KEY (store_id, art_id, point_date)
             ) ENGINE=InnoDB;
         """)
-        points[['store_id','art_id','dt','stock_open']].to_sql(
+        points[['store_id','art_id','point_date','sod_stock']].to_sql(
             '_init_points', conn, if_exists='append', index=False
         )
 
         conn.exec_driver_sql("""
-            INSERT INTO stock_points (store_id, art_id, dt, stock_open)
-            SELECT store_id, art_id, dt, stock_open FROM _init_points
-            ON DUPLICATE KEY UPDATE stock_open = VALUES(stock_open);
+            INSERT INTO stock_points (store_id, art_id, point_date, sod_stock)
+            SELECT store_id, art_id, point_date, sod_stock FROM _init_points
+            ON DUPLICATE KEY UPDATE sod_stock = VALUES(sod_stock);
         """)
+
         conn.exec_driver_sql("DROP TEMPORARY TABLE _init_points;")
     
     # 6) Set last_points_dt to the max date_time of the data inserted
-    get_max_points_dt_sql = Path("sql/get_max_points_dt.sql").read_text(encoding="utf-8")
-    set_last_points_dt_sql = Path("sql/set_last_points_dt.sql").read_text(encoding="utf-8")
+    get_max_points_dt_sql = Path(SCRITP_DIR / "sql/get_max_points_dt.sql").read_text(encoding="utf-8")
+    set_last_points_dt_sql = Path(SCRITP_DIR / "sql/set_last_points_dt.sql").read_text(encoding="utf-8")
 
     with engine.begin() as conn:
         max_dt = conn.execute(

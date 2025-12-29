@@ -4,7 +4,11 @@ from sqlalchemy import create_engine, text
 from pathlib import Path
 from extract import extract_stock_movements
 
-CONFIG = json.load(open("../config_testing.json"))
+SCRITP_DIR = Path(__file__).resolve().parent
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent   # osmart-etl/
+CONFIG_PATH  = PROJECT_ROOT / "config.json"
+CONFIG = json.load(open(CONFIG_PATH))
 
 # Create connection to the cleaned data database (osmart_data)
 db_config = CONFIG["analytics_db"]
@@ -14,7 +18,7 @@ engine = create_engine(
 
 def get_last_processed_timestamp(store_name):
     """Get the last processed timestamp for a store from the checkpoint table"""
-    get_last_ts_sql = Path("sql/get_last_raw_ts.sql").read_text(encoding="utf-8")
+    get_last_ts_sql = Path(SCRITP_DIR / "sql/get_last_raw_ts.sql").read_text(encoding="utf-8")
     
     with engine.begin() as conn:
         result = conn.execute(
@@ -26,7 +30,7 @@ def get_last_processed_timestamp(store_name):
 
 def update_last_processed_timestamp(store_name, timestamp):
     """Update the last processed timestamp for a store"""
-    set_last_raw_ts_sql = Path("sql/set_last_raw_ts.sql").read_text(encoding="utf-8")
+    set_last_raw_ts_sql = Path(SCRITP_DIR / "sql/set_last_raw_ts.sql").read_text(encoding="utf-8")
     
     with engine.begin() as conn:
         conn.execute(
@@ -47,7 +51,7 @@ def extract_incremental_data(source, start_timestamp):
         batch_dates.append((current_date.isoformat(), current_date.isoformat()))
         current_date += timedelta(days=1)
     
-    return extract_stock_movements(source, batch_dates)
+    return extract_stock_movements(source, batch_dates, SCRITP_DIR)
 
 def main():
     """Main updater function"""
