@@ -46,7 +46,11 @@ def clean_and_standardize_legacy(df, store):
         qa_df["issue_type"] = qa_df.apply(tag_issue, axis=1)
     
     # Combine fecha and usuhora to create datetime column
-    df["fecha_hora"] = pd.to_datetime(df["fecha"] + " " + df["usuhora"], errors="coerce")
+    df["fecha_hora"] = pd.to_datetime(
+        df["fecha"].str[:10] + " " + df["usuhora"],
+        format="%Y-%m-%d %H:%M:%S",
+        errors="coerce"
+    )
     
     # Rename columns to match target schema
     df.rename(columns={"venta": "ven_id", "total": "total_venta"}, inplace=True)

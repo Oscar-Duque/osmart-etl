@@ -17,7 +17,8 @@ WHERE
     AND movimiento.tipo = 1
     AND movimiento.status = 1
     AND movimiento.ven_id IS NOT NULL
-    AND historial.fecha BETWEEN :start_date AND :end_date
+    AND historial.fecha  >= :start_date
+    AND historial.fecha  < DATE_ADD(:end_date, INTERVAL 1 DAY)
 GROUP BY 
     movimiento.ven_id
 ORDER BY 

@@ -2,8 +2,8 @@ import json
 import pandas as pd
 from extract import extract_legacy, extract_sicar
 from transform import clean_and_standardize_legacy
-from db.db_helpers import reset_ventas_limpias, insert_on_conflict_update
-from sqlalchemy import create_engine
+from db.db_helpers import reset_ventas_limpias, insert_on_conflict_update, get_max_id_sicar
+from sqlalchemy import create_engine, text
 import os
 
 CONFIG = json.load(open("../config.json"))
@@ -60,6 +60,9 @@ for source in CONFIG["sicar_sources"]:
         ("2025-03-01", "2025-03-31"),
         ("2025-04-01", "2025-04-30"),
         ("2025-05-01", "2025-05-31"),
+        ("2025-06-01", "2025-06-30"),
+        ("2025-07-01", "2025-07-31"),
+        ("2025-08-01", "2025-08-31"),
     ]
         
     for df in extract_sicar(source, batch_dates):
@@ -70,6 +73,19 @@ for source in CONFIG["sicar_sources"]:
             con=engine, 
             if_exists="append", 
             index=False
+        )
+        
+    # actualizar tabla de etl_progress
+    max_ven_id = get_max_id_sicar(engine, source['name'])
+
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                UPDATE etl_progress
+                SET last_processed_ven_id = :last_id
+                WHERE store_name = :store
+            """),
+            {"store": source['name'], "last_id": max_ven_id}
         )
     
     print(f"✅ Clean data written to ventas_limpias for {source['name']}")

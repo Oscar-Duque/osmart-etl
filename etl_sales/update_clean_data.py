@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 import pandas as pd
 import logging
 from sqlalchemy import create_engine, text
@@ -8,7 +9,9 @@ from db.db_helpers import insert_on_conflict_update
 log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
 # File handler
-file_handler = logging.FileHandler("logs/update_clean_data.log")
+SCRITP_DIR = Path(__file__).resolve().parent
+LOG_PATH = SCRITP_DIR / "logs/update_clean_data.log"
+file_handler = logging.FileHandler(LOG_PATH)
 file_handler.setFormatter(log_formatter)
 file_handler.setLevel(logging.INFO)
 
@@ -19,8 +22,9 @@ console_handler.setLevel(logging.INFO)
 
 # Root logger config
 logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
-
-CONFIG = json.load(open("../config.json"))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent   # osmart-etl/
+CONFIG_PATH  = PROJECT_ROOT / "config.json"
+CONFIG = json.load(open(CONFIG_PATH))
 
 # Create connection to the cleaned data database (osmart_data)
 db_config = CONFIG["analytics_db"]
@@ -55,7 +59,7 @@ for source in CONFIG["sicar_sources"]:
         
         # Extract new sales
         with source_engine.connect() as conn:
-            with open("db/extract_latest_sicar_sales.sql", "r") as f:
+            with open(SCRITP_DIR / "db/extract_latest_sicar_sales.sql", "r") as f:
                     query =  text(f.read())
             
             logging.info(f"🔄 Extracting SICAR sales for {source['store']}")
@@ -93,7 +97,6 @@ for source in CONFIG["sicar_sources"]:
             )
 
             max_ven_id = df["ven_id"].max()
-            # import pdb; pdb.set_trace()
             conn.execute(
                 text("""
                     UPDATE etl_progress

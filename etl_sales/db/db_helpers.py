@@ -39,3 +39,18 @@ def insert_on_conflict_update(table, conn, keys, data_iter):
     result = conn.execute(stmt)
     return result.rowcount
 
+def get_max_id_sicar(engine, store):
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("""
+                SELECT
+                MAX(ven_id)
+                FROM
+                ventas_limpias
+                WHERE
+                tienda = :store
+                AND source_system = 'sicar';
+            """),
+            {"store": store}
+        )
+    return result
