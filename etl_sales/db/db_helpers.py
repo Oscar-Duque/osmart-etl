@@ -53,4 +53,4 @@ def get_max_id_sicar(engine, store):
             """),
             {"store": store}
         )
-    return result
+    return result.scalar()

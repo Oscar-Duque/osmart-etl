@@ -1,1 +1,1 @@
-SELECT MAX(fecha) FROM raw_stock_movements WHERE tienda_id = :tienda_id
+SELECT MAX(fecha) FROM raw_stock_movements WHERE source_id = :source_id

@@ -23,26 +23,32 @@ console_handler.setLevel(logging.INFO)
 # Root logger config
 logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
 PROJECT_ROOT = Path(__file__).resolve().parent.parent   # osmart-etl/
-CONFIG_PATH  = PROJECT_ROOT / "config.json"
+CONFIG_PATH  = PROJECT_ROOT / "config_v2.json"
 CONFIG = json.load(open(CONFIG_PATH))
 
 # Create connection to the cleaned data database (osmart_data)
-db_config = CONFIG["analytics_db"]
+analytics_source = CONFIG["cedis"]["analytics_source"]
 analytics_engine = create_engine(
-    f"mysql+pymysql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
+    f"mysql+pymysql://{analytics_source['user']}:{analytics_source['password']}@{analytics_source['host']}:{analytics_source['port']}/{analytics_source['database']}"
 )
 
-# For each SICAR source (store)
-for source in CONFIG["sicar_sources"]:
-    store_name = source["store"]
-    logging.info(f"\n--- Processing store: {store_name} ---")
+stores = ['vallarta', 'renacimiento', 'velazquez', 'coloso', 'zapata']
 
+# For each SICAR source (store)
+for store in stores:
+    store_id = CONFIG[store]["store_id"]
+    source = CONFIG[store]["sicar_source"]
+    logging.info(f"\n--- Processing store: {store} ---")
+
+    if store == 'vallarta':
+        store = 'vallarta_karina'
+    
     # Get last processed ven_id
     try:
         with analytics_engine.connect() as conn:
             result = conn.execute(
                 text("SELECT last_processed_ven_id FROM etl_progress WHERE store_name = :store"),
-                {"store": store_name}
+                {"store": store}
             ).fetchone()
             last_processed_id = result[0] if result else 0
             logging.info(f"Last processed ven_id: {last_processed_id}")
@@ -62,7 +68,7 @@ for source in CONFIG["sicar_sources"]:
             with open(SCRITP_DIR / "db/extract_latest_sicar_sales.sql", "r") as f:
                     query =  text(f.read())
             
-            logging.info(f"🔄 Extracting SICAR sales for {source['store']}")
+            logging.info(f"🔄 Extracting SICAR sales for {store}")
             df = pd.read_sql_query(
                 query,
                 conn,
@@ -76,14 +82,15 @@ for source in CONFIG["sicar_sources"]:
             logging.info(f"Found {len(df)} new sales.")
     
     except Exception as e:
-        logging.error(f"❗️ Error extracting for {source['store']}: {e}")
+        logging.error(f"❗️ Error extracting for {store}: {e}")
         continue
     
     # Transform data
-    df["tienda"] = source["store"]
+    df["tienda"] = store
     df["source_db"] = source["database"]
     df["source_system"] = "sicar"
     df["extracted_at"] = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+    df["tienda_id"] = store_id
     
     # Load into ventas_limpias and update etl_progress
     try:
@@ -103,13 +110,13 @@ for source in CONFIG["sicar_sources"]:
                     SET last_processed_ven_id = :last_id
                     WHERE store_name = :store
                 """),
-                {"store": store_name, "last_id": max_ven_id}
+                {"store": store, "last_id": max_ven_id}
             )
             
-            logging.info(f"Finished {store_name}. Last ven_id now {max_ven_id}.")
+            logging.info(f"Finished {store}. Last ven_id now {max_ven_id}.")
     
     except Exception as e:
-        logging.error(f"❗️ Error inserting data for {store_name}: {e}")
+        logging.error(f"❗️ Error inserting data for {store}: {e}")
         continue
     
 logging.info("\nAll stores processed.")
