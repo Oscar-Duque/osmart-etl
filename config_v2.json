@@ -5,6 +5,7 @@
     "dep_ventanilla_id": 2,
     "sicar_source": {
       "source_id": 5,
+      "source_name": "vallarta_karina",
       "host": "192.168.5.5",
       "port": "3306",
       "user": "consultas",
@@ -128,6 +129,7 @@
     "dep_ventanilla_id": 3,
     "sicar_source": {
       "source_id": 2,
+      "source_name": "renacimiento",
       "host": "192.168.2.3",
       "port": "3307",
       "user": "consultas",
@@ -245,6 +247,7 @@
     "dep_ventanilla_id": 4,
     "sicar_source": {
       "source_id": 3,
+      "source_name": "velazquez",
       "host": "192.168.4.3",
       "port": "3307",
       "user": "consultas",
@@ -376,6 +379,7 @@
     "dep_ventanilla_id": 5,
     "sicar_source": {
       "source_id": 4,
+      "source_name": "coloso",
       "host": "192.168.3.3",
       "port": "3306",
       "user": "consultas",
@@ -497,6 +501,7 @@
     "dep_ventanilla_id": 8,
     "sicar_source": {
       "source_id": 6,
+      "source_name": "zapata",
       "host": "192.168.7.3",
       "port": "3306",
       "user": "consultas",
@@ -516,6 +521,7 @@
     "store_id": 0,
     "sicar_source": {
       "source_id": 0,
+      "source_name": "cedis",
       "host": "192.168.6.5",
       "port": "3307",
       "user": "consultas",

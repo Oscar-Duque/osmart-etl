@@ -1,3 +1,3 @@
-SELECT last_raw_ts 
-FROM etl_progress 
-WHERE store_name = :store_name;
+SELECT MAX(fecha) AS max_fecha
+FROM raw_stock_movements
+WHERE source_id = :source_id;

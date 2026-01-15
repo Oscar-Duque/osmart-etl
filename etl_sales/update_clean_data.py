@@ -5,31 +5,28 @@ import logging
 from sqlalchemy import create_engine, text
 from db.db_helpers import insert_on_conflict_update
 
-# Setup logging to file + console
-log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-
-# File handler
 SCRITP_DIR = Path(__file__).resolve().parent
-LOG_PATH = SCRITP_DIR / "logs/update_clean_data.log"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent   # osmart-etl/
+LOG_PATH = PROJECT_ROOT / "logs/update_clean_data.log"
+CONFIG_PATH  = PROJECT_ROOT / "config_v2.json"
+CONFIG = json.load(open(CONFIG_PATH))
+
+log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 file_handler = logging.FileHandler(LOG_PATH)
 file_handler.setFormatter(log_formatter)
 file_handler.setLevel(logging.INFO)
-
-# Console handler
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(log_formatter)
 console_handler.setLevel(logging.INFO)
 
-# Root logger config
 logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
-PROJECT_ROOT = Path(__file__).resolve().parent.parent   # osmart-etl/
-CONFIG_PATH  = PROJECT_ROOT / "config_v2.json"
-CONFIG = json.load(open(CONFIG_PATH))
 
 # Create connection to the cleaned data database (osmart_data)
 analytics_source = CONFIG["cedis"]["analytics_source"]
 analytics_engine = create_engine(
-    f"mysql+pymysql://{analytics_source['user']}:{analytics_source['password']}@{analytics_source['host']}:{analytics_source['port']}/{analytics_source['database']}"
+    f"mysql+pymysql://{analytics_source['user']}:"
+    f"{analytics_source['password']}@{analytics_source['host']}:"
+    f"{analytics_source['port']}/{analytics_source['database']}"
 )
 
 stores = ['vallarta', 'renacimiento', 'velazquez', 'coloso', 'zapata']
@@ -40,6 +37,8 @@ for store in stores:
     source = CONFIG[store]["sicar_source"]
     logging.info(f"\n--- Processing store: {store} ---")
 
+    # store <= nombre del servidor
+    # store_id <= tienda física a la que pertenece el servidor
     if store == 'vallarta':
         store = 'vallarta_karina'
     

@@ -69,7 +69,7 @@ def verify_stock_accuracy(source, calculated_stock, script_dir):
             .merge(sim, on='art_id', how='outer')
             .fillna({'stock_actual':0, 'stock_sim_now':0}))
     comp['diff'] = comp['stock_sim_now'].astype(int) - comp['stock_actual'].astype(int)
-    comp.to_csv(f"output_{source['store_id']}_{source['store']}.csv")
+    comp.to_csv(f"output_{source['source_id']}_{source['source_name']}.csv")
 
     summary = {
         'total_skus': len(comp),

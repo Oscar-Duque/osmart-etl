@@ -16,7 +16,7 @@ FROM
     FROM
       raw_stock_movements r
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen <> 'Traspaso'
       AND r.tabla_origen <> 'ajusteinventario' -- ajustes handled below
       
@@ -32,7 +32,7 @@ FROM
     FROM
       raw_stock_movements r
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen = 'Traspaso'
       AND r.tipo_movimiento = 'Traspaso Entrada'
     
@@ -40,7 +40,7 @@ FROM
     
       /* 3) Traspaso Entrada Cancelado:
       keep ONLY if a prior Entrada exists on the SAME side,
-      keep the EARLIEST cancel per (id_origen, art_id, tienda_id) */
+      keep the EARLIEST cancel per (id_origen, art_id, source_id) */
     SELECT
       r.art_id,
       r.fecha,
@@ -54,26 +54,26 @@ FROM
           tabla_origen,
           id_origen,
           art_id,
-          tienda_id,
+          source_id,
           MIN(fecha) AS min_fecha
         FROM
           raw_stock_movements
         WHERE
           tabla_origen = 'Traspaso'
           AND tipo_movimiento = 'Traspaso Entrada Cancelado'
-          AND tienda_id = :store_id
+          AND source_id = :source_id
         GROUP BY
           tabla_origen,
           id_origen,
           art_id,
-          tienda_id
+          source_id
       ) m ON m.tabla_origen = r.tabla_origen
       AND m.id_origen = r.id_origen
       AND m.art_id = r.art_id
-      AND m.tienda_id = r.tienda_id
+      AND m.source_id = r.source_id
       AND m.min_fecha = r.fecha
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen = 'Traspaso'
       AND r.tipo_movimiento = 'Traspaso Entrada Cancelado'
       AND EXISTS (
@@ -85,7 +85,7 @@ FROM
           e.tabla_origen = 'Traspaso'
           AND e.id_origen = r.id_origen
           AND e.art_id = r.art_id
-          AND e.tienda_id = r.tienda_id
+          AND e.source_id = r.source_id
           AND e.tipo_movimiento = 'Traspaso Entrada'
           AND e.fecha <= r.fecha
       ) 
@@ -102,7 +102,7 @@ FROM
     FROM
       raw_stock_movements r
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen = 'Traspaso'
       AND r.tipo_movimiento = 'Traspaso Salida' 
     
@@ -110,7 +110,7 @@ FROM
     
       /* 5) Traspaso Salida Cancelado:
       keep ONLY if a prior Salida exists on the SAME side,
-      keep the EARLIEST cancel per (id_origen, art_id, tienda_id) */
+      keep the EARLIEST cancel per (id_origen, art_id, source_id) */
     SELECT
       r.art_id,
       r.fecha,
@@ -124,26 +124,26 @@ FROM
           tabla_origen,
           id_origen,
           art_id,
-          tienda_id,
+          source_id,
           MIN(fecha) AS min_fecha
         FROM
           raw_stock_movements
         WHERE
           tabla_origen = 'Traspaso'
           AND tipo_movimiento = 'Traspaso Salida Cancelado'
-          AND tienda_id = :store_id
+          AND source_id = :source_id
         GROUP BY
           tabla_origen,
           id_origen,
           art_id,
-          tienda_id
+          source_id
       ) m ON m.tabla_origen = r.tabla_origen
       AND m.id_origen = r.id_origen
       AND m.art_id = r.art_id
-      AND m.tienda_id = r.tienda_id
+      AND m.source_id = r.source_id
       AND m.min_fecha = r.fecha
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen = 'Traspaso'
       AND r.tipo_movimiento = 'Traspaso Salida Cancelado'
       AND EXISTS (
@@ -155,7 +155,7 @@ FROM
           s0.tabla_origen = 'Traspaso'
           AND s0.id_origen = r.id_origen
           AND s0.art_id = r.art_id
-          AND s0.tienda_id = r.tienda_id
+          AND s0.source_id = r.source_id
           AND s0.tipo_movimiento = 'Traspaso Salida'
           AND s0.fecha <= r.fecha
       ) 
@@ -173,7 +173,7 @@ FROM
     FROM
       raw_stock_movements r
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen = 'ajusteinventario'
       AND r.is_absolute = 1
   ) AS y
