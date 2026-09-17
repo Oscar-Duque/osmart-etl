@@ -1,14 +1,18 @@
+import logging
 import pandas as pd
 from sqlalchemy import create_engine, text
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
     
-def verify_stock_accuracy(source, calculated_stock, script_dir):
+def verify_stock_accuracy(source, store_id, calculated_stock):
     ## Get current stock now and today's net movement from production
-    print(f"🔍 Verifying stock accuracy")
+    logging.info(f"🔍 Verifying stock accuracy")
     today = pd.Timestamp.now(tz="America/Mexico_City").normalize()
     tomorrow = (today + pd.Timedelta(days=1))
 
     # Connect to production db
-    # db_config = CONFIG["sicar_sources"][0]
     prod_engine = create_engine(
         f"mysql+pymysql://{source['user']}:{source['password']}@{source['host']}:{source['port']}/{source['database']}"
     )
@@ -20,12 +24,14 @@ def verify_stock_accuracy(source, calculated_stock, script_dir):
     """)
 
     # b) today's movements
-    with open(script_dir / "sql/extract_stock_movements.sql", "r") as f:
+    with open(SCRIPT_DIR / "sql/extract_stock_movements.sql", "r") as f:
         sql_today_events = text(f.read())
 
     with prod_engine.begin() as conn:
         prod_now = pd.read_sql_query(sql_stock_now, conn)
         today_events = pd.read_sql_query(sql_today_events, conn, params={
+            "source_id": source["source_id"],
+            "tienda_id": store_id,
             "start_date": today.tz_localize(None), 
             "end_date": tomorrow.tz_localize(None)
         })
@@ -69,11 +75,15 @@ def verify_stock_accuracy(source, calculated_stock, script_dir):
             .merge(sim, on='art_id', how='outer')
             .fillna({'stock_actual':0, 'stock_sim_now':0}))
     comp['diff'] = comp['stock_sim_now'].astype(int) - comp['stock_actual'].astype(int)
-    comp.to_csv(f"output_{source['source_id']}_{source['source_name']}.csv")
+    
+    prod_now.to_csv(PROJECT_ROOT / f"debug/output_{source['source_id']}_{source['source_name']}_prod_now.csv")
+    today_events.to_csv(PROJECT_ROOT / f"debug/output_{source['source_id']}_{source['source_name']}_today_events.csv")
+    sim.to_csv(PROJECT_ROOT / f"debug/output_{source['source_id']}_{source['source_name']}_sim.csv")
+    comp.to_csv(PROJECT_ROOT / f"debug/output_{source['source_id']}_{source['source_name']}_comp.csv")
 
     summary = {
         'total_skus': len(comp),
         'mismatch_skus': int((comp['diff'] != 0).sum()),
         'max_abs_diff': int(comp['diff'].abs().max()) if not comp.empty else 0
     }
-    print(f"📊 Verification: {summary}")
+    logging.info(f"📊 Verification: {summary}")

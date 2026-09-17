@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 from sqlalchemy import text, create_engine
 
-def extract_stock_movements(source, store_id, batch_dates):
+def extract_stock_movements(source, store_id, batch_dates, script_dir):
     conn = None
     
     try:
@@ -10,7 +10,7 @@ def extract_stock_movements(source, store_id, batch_dates):
         engine = create_engine(conn_str)
         conn = engine.connect()
     
-        query = Path("sql/extract_stock_movements.sql").read_text(encoding="utf-8")
+        query = Path(script_dir / "sql/extract_stock_movements.sql").read_text(encoding="utf-8")
 
         for start_date, end_date in batch_dates:
             try:
@@ -18,12 +18,9 @@ def extract_stock_movements(source, store_id, batch_dates):
                 df = pd.read_sql_query(
                     text(query),
                     conn,
-                    params={"start_date": start_date, "end_date": end_date}
+                    params={"start_date": start_date, "end_date": end_date, "source_id": source["source_id"], "tienda_id": store_id}
                 )
-                
-                # import pdb; pdb.set_trace()
-                df["source_id"] = source["source_id"]
-                df["tienda_id"] = store_id
+ 
                 df["extracted_at"] = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
                 
                 if not df.empty:

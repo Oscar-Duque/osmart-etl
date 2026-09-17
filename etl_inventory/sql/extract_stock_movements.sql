@@ -1,11 +1,23 @@
 SELECT
-  *
+  art_id,
+  fecha,
+  his_id,
+  tipo_movimiento,
+  is_absolute,
+  delta_cantidad,
+  abs_stock_after,
+  id_origen,
+  tabla_origen,
+  usuario,
+  source_id,
+  tienda_id
 FROM
   (
     (
       SELECT
         dt.art_id AS art_id,
         h.fecha AS fecha,
+        h.his_id AS his_id,
         CASE
           WHEN t.sucOri = n.sucId
             AND h.movimiento = '0' THEN
@@ -23,7 +35,9 @@ FROM
         NULL AS abs_stock_after,
         h.id AS id_origen,
         h.tabla AS tabla_origen,
-        u.nombre AS usuario
+        u.nombre AS usuario,
+        :source_id AS source_id,
+        :tienda_id AS tienda_id
       FROM
         historial h
         JOIN traspaso t ON h.id = t.tra_id
@@ -35,29 +49,32 @@ FROM
         AND h.movimiento != '1'
         AND h.fecha >= :start_date
         AND h.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
-    ) UNION
+    ) UNION ALL
     (
       SELECT
         dt.art_id,
         h.fecha,
+        h.his_id AS his_id,
         CASE
           WHEN t.sucOri != n.sucId
             AND h.movimiento = '1' THEN
             'Traspaso Entrada '
           ELSE
             'Traspaso Entrada Cancelado'
-        END,
+        END AS tipo_movimiento,
         0 AS is_absolute,
         CASE
           WHEN h.movimiento = '1' THEN
             dt.cantidad
           ELSE
             dt.cantidad * - 1
-        END AS CANTIDAD,
+        END AS delta_cantidad,
         NULL AS abs_stock_after,
         h.id,
         h.tabla,
-        u.nombre
+        u.nombre,
+        :source_id AS source_id,
+        :tienda_id AS tienda_id
       FROM
         historial h
         JOIN traspaso t ON h.id = t.tra_id
@@ -69,28 +86,31 @@ FROM
         AND h.movimiento != '0'
         AND h.fecha >= :start_date
         AND h.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
-    ) UNION
+    ) UNION ALL
     (
       SELECT
         dn.art_id,
         h.fecha,
+        h.his_id AS his_id,
         CASE
           WHEN h.movimiento = '0' THEN
             'Nota de Crédito'
           ELSE
             'Nota de Crédito Cancelada'
-        END,
+        END AS tipo_movimiento,
         0 AS is_absolute,
         CASE
           WHEN h.movimiento = '0' THEN
             dn.cantidad
           ELSE
             dn.cantidad * - 1
-        END AS CANTIDAD,
+        END AS delta_cantidad,
         NULL AS abs_stock_after,
         h.id,
         h.tabla,
-        u.nombre
+        u.nombre,
+        :source_id AS source_id,
+        :tienda_id AS tienda_id
       FROM
         historial h
         JOIN detallen dn ON h.id = dn.ncr_id
@@ -99,18 +119,21 @@ FROM
         h.tabla = 'NotaCredito'
         AND h.fecha >= :start_date
         AND h.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
-    ) UNION
+    ) UNION ALL
     (
       SELECT
         a.art_id,
         h.fecha,
-        'Ajuste de Inventario',
+        h.his_id AS his_id,
+        'Ajuste de Inventario' AS tipo_movimiento,
         1 AS is_absolute,
         NULL AS delta_cantidad,
         CAST(aj.exisActual AS SIGNED) AS abs_stock_after,
         h.id,
         h.tabla,
-        u.nombre
+        u.nombre,
+        :source_id AS source_id,
+        :tienda_id AS tienda_id
       FROM
         historial h
         JOIN ajusteinventarioarticulo aj ON h.id = aj.ain_id
@@ -120,28 +143,31 @@ FROM
         h.tabla = 'ajusteinventario'
         AND h.fecha >= :start_date
         AND h.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
-    ) UNION
+    ) UNION ALL
     (
       SELECT
         dv.art_id,
         h.fecha,
+        h.his_id AS his_id,
         CASE
           WHEN h.movimiento = '0' THEN
             'Venta'
           ELSE
             'Venta Cancelada'
-        END,
+        END AS tipo_movimiento,
         0 AS is_absolute,
         CASE
           WHEN h.movimiento = '0' THEN
             dv.cantidad * - 1
           ELSE
             dv.cantidad
-        END AS CANTIDAD,
+        END AS delta_cantidad,
         NULL AS abs_stock_after,
         h.id,
         h.tabla,
-        u.nombre
+        u.nombre,
+        :source_id AS source_id,
+        :tienda_id AS tienda_id
       FROM
         historial h
         JOIN detallev dv ON h.id = dv.ven_id
@@ -150,18 +176,21 @@ FROM
         h.tabla = 'Venta'
         AND h.fecha >= :start_date
         AND h.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
-    ) UNION
+    ) UNION ALL
     (
       SELECT
         im.art_id,
         h.fecha,
-        'Importar Articulo',
+        h.his_id AS his_id,
+        'Importar Articulo' AS tipo_movimiento,
         0 AS is_absolute,
-        (im.exisActual - im.exisAnterior) AS CANTIDAD,
+        (im.exisActual - im.exisAnterior) AS delta_cantidad,
         NULL AS abs_stock_after,
         h.id,
         h.tabla,
-        u.nombre
+        u.nombre,
+        :source_id AS source_id,
+        :tienda_id AS tienda_id
       FROM
         historial h
         JOIN importararticulodetalle im ON h.id = im.ima_id
@@ -170,28 +199,31 @@ FROM
         h.tabla = 'ImportarArticulo'
         AND h.fecha >= :start_date
         AND h.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
-    ) UNION
+    ) UNION ALL
     (
       SELECT
         dc.art_id,
         h.fecha,
+        h.his_id AS his_id,
         CASE
           WHEN h.movimiento = '0' THEN
             'Compra'
           ELSE
             'Compra Cancelada'
-        END,
+        END AS tipo_movimiento,
         0 AS is_absolute,
         CASE
           WHEN h.movimiento = '0' THEN
             dc.cantidad
           ELSE
             dc.cantidad * - 1
-        END AS CANTIDAD,
+        END AS delta_cantidad,
         NULL AS abs_stock_after,
         h.id,
         h.tabla,
-        u.nombre
+        u.nombre,
+        :source_id AS source_id,
+        :tienda_id AS tienda_id
       FROM
         historial h
         JOIN detallec dc ON h.id = dc.com_id
@@ -201,23 +233,26 @@ FROM
         h.tabla = 'Compra'
         AND h.fecha >= :start_date
         AND h.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
-    ) UNION
+    ) UNION ALL
     (
       SELECT
         dp.art_id,
         h.fecha,
-        'Devolucion Proveedor',
+        h.his_id AS his_id,
+        'Devolucion Proveedor' AS tipo_movimiento,
         0 AS is_absolute,
         CASE
           WHEN h.movimiento = '0' THEN
             dp.cantidad * - 1
           ELSE
             dp.cantidad
-        END AS CANTIDAD,
+        END AS delta_cantidad,
         NULL AS abs_stock_after,
         h.id,
         h.tabla,
-        u.nombre
+        u.nombre,
+        :source_id AS source_id,
+        :tienda_id AS tienda_id
       FROM
         historial h
         JOIN notacreditopro ncp ON h.id = ncp.ncp_id

@@ -16,11 +16,11 @@ FROM
     FROM
       raw_stock_movements r
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen <> 'Traspaso'
       AND r.tabla_origen <> 'ajusteinventario' -- ajustes handled below
-      AND DATE(r.fecha) >= :start_date
-      AND DATE(r.fecha) <= :end_date
+      AND r.fecha >= :start_date
+      AND r.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
       
     UNION ALL
       
@@ -34,11 +34,11 @@ FROM
     FROM
       raw_stock_movements r
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen = 'Traspaso'
       AND r.tipo_movimiento = 'Traspaso Entrada'
-      AND DATE(r.fecha) >= :start_date
-      AND DATE(r.fecha) <= :end_date
+      AND r.fecha >= :start_date
+      AND r.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
     
     UNION ALL
     
@@ -55,23 +55,23 @@ FROM
       raw_stock_movements r
       JOIN (
         SELECT
+          art_id,
+          MIN(fecha) AS min_fecha,
           tabla_origen,
           id_origen,
-          art_id,
-          tienda_id,
-          MIN(fecha) AS min_fecha
+          tienda_id
         FROM
           raw_stock_movements
         WHERE
           tabla_origen = 'Traspaso'
           AND tipo_movimiento = 'Traspaso Entrada Cancelado'
-          AND tienda_id = :store_id
-          AND DATE(fecha) >= :start_date
-          AND DATE(fecha) <= :end_date
+          AND source_id = :source_id
+          AND fecha >= :start_date
+          AND fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
         GROUP BY
+          art_id,
           tabla_origen,
           id_origen,
-          art_id,
           tienda_id
       ) m ON m.tabla_origen = r.tabla_origen
       AND m.id_origen = r.id_origen
@@ -79,11 +79,11 @@ FROM
       AND m.tienda_id = r.tienda_id
       AND m.min_fecha = r.fecha
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen = 'Traspaso'
       AND r.tipo_movimiento = 'Traspaso Entrada Cancelado'
-      AND DATE(r.fecha) >= :start_date
-      AND DATE(r.fecha) <= :end_date
+      AND r.fecha >= :start_date
+      AND r.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
       AND EXISTS (
         SELECT
           1
@@ -93,6 +93,7 @@ FROM
           e.tabla_origen = 'Traspaso'
           AND e.id_origen = r.id_origen
           AND e.art_id = r.art_id
+          AND e.source_id = r.source_id
           AND e.tienda_id = r.tienda_id
           AND e.tipo_movimiento = 'Traspaso Entrada'
           AND e.fecha <= r.fecha
@@ -110,11 +111,11 @@ FROM
     FROM
       raw_stock_movements r
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen = 'Traspaso'
       AND r.tipo_movimiento = 'Traspaso Salida'
-      AND DATE(r.fecha) >= :start_date
-      AND DATE(r.fecha) <= :end_date
+      AND r.fecha >= :start_date
+      AND r.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
     
     UNION ALL
     
@@ -131,9 +132,9 @@ FROM
       raw_stock_movements r
       JOIN (
         SELECT
+          art_id,
           tabla_origen,
           id_origen,
-          art_id,
           tienda_id,
           MIN(fecha) AS min_fecha
         FROM
@@ -141,13 +142,13 @@ FROM
         WHERE
           tabla_origen = 'Traspaso'
           AND tipo_movimiento = 'Traspaso Salida Cancelado'
-          AND tienda_id = :store_id
-          AND DATE(fecha) >= :start_date
-          AND DATE(fecha) <= :end_date
+          AND source_id = :source_id
+          AND fecha >= :start_date
+          AND fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
         GROUP BY
+          art_id,
           tabla_origen,
           id_origen,
-          art_id,
           tienda_id
       ) m ON m.tabla_origen = r.tabla_origen
       AND m.id_origen = r.id_origen
@@ -155,11 +156,11 @@ FROM
       AND m.tienda_id = r.tienda_id
       AND m.min_fecha = r.fecha
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen = 'Traspaso'
       AND r.tipo_movimiento = 'Traspaso Salida Cancelado'
-      AND DATE(r.fecha) >= :start_date
-      AND DATE(r.fecha) <= :end_date
+      AND r.fecha >= :start_date
+      AND r.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
       AND EXISTS (
         SELECT
           1
@@ -169,6 +170,7 @@ FROM
           s0.tabla_origen = 'Traspaso'
           AND s0.id_origen = r.id_origen
           AND s0.art_id = r.art_id
+          AND s0.source_id = r.source_id
           AND s0.tienda_id = r.tienda_id
           AND s0.tipo_movimiento = 'Traspaso Salida'
           AND s0.fecha <= r.fecha
@@ -187,11 +189,11 @@ FROM
     FROM
       raw_stock_movements r
     WHERE
-      r.tienda_id = :store_id
+      r.source_id = :source_id
       AND r.tabla_origen = 'ajusteinventario'
       AND r.is_absolute = 1
-      AND DATE(r.fecha) >= :start_date
-      AND DATE(r.fecha) <= :end_date
+      AND r.fecha >= :start_date
+      AND r.fecha < DATE_ADD(:end_date, INTERVAL 1 DAY)
   ) AS y
 ORDER BY
   y.art_id,

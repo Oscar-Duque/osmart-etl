@@ -25,7 +25,6 @@ file_handler.setLevel(logging.INFO)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(log_formatter)
 console_handler.setLevel(logging.INFO)
-
 logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
 
 # Create connection to the cleaned data database (osmart_data)
@@ -42,6 +41,8 @@ source = CONFIG[store]["sicar_source"]
 logging.info(f"\n--- Processing store: {store} ---")
 
 # Extract from raw logs
+
+##### TODO: only extract last complete date
 with analytics_engine.begin() as conn:
     df = pd.read_sql_query(
         text(extract_filter_raw_stock_movements_sql),
@@ -56,14 +57,18 @@ df, flagged = apply_exclusions_and_log(
     csv_path=EXCLUSIONS_CSV,
     abs_max=ABS_MAX
 )
+
 if flagged:
     logging.warning(f"[DQ] Excluded {flagged} raw rows (manual or absurd absolute snapshots).")
     
 logging.info(f"Cleaning data...")
+
 # Ensure types
 df['fecha'] = pd.to_datetime(df['fecha'])
+
 # normalize flags
 df['is_absolute'] = df.get('is_absolute', 0).fillna(0).astype(bool)
+
 # ensure numeric types
 if 'delta_cantidad' not in df.columns:
     df['delta_cantidad'] = np.nan

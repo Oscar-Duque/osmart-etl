@@ -1,6 +1,6 @@
 import json
 from extract import extract_sicar
-from db.db_helpers import get_max_id_sicar
+from etl_sales.db_helpers import get_max_id_sicar
 from sqlalchemy import create_engine, text
 
 CONFIG = json.load(open("../config_v2.json"))

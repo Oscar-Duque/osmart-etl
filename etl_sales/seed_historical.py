@@ -2,7 +2,7 @@ import json
 import pandas as pd
 from extract import extract_legacy, extract_sicar
 from transform import clean_and_standardize_legacy
-from db.db_helpers import reset_ventas_limpias, insert_on_conflict_update, get_max_id_sicar
+from etl_sales.db_helpers import reset_ventas_limpias, insert_on_conflict_update, get_max_id_sicar
 from sqlalchemy import create_engine, text
 import os
 
