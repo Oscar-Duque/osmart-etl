@@ -1,6 +1,7 @@
 config.json
 config.json.bkp
 config_testing.json
+sources.json
 mysql-connector-java-5.1.49.jar
 data/*
 output/*
