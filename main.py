@@ -2,6 +2,7 @@ from pathlib import Path
 import logging
 
 from etl_sales.update_clean_data import main as update_sales
+from etl_sales.update_daily_sales import main as update_daily_sales
 from etl_inventory.update_raw_stock_movements import main as update_raw_stock_movements
 from etl_inventory.update_stock_points_v2 import main as update_stock_points
 
@@ -32,6 +33,11 @@ def main():
     
     try:
         update_sales()
+    except Exception as e:
+        logging.exception("❌ Sales ETL failed")
+    
+    try:
+        update_daily_sales()
     except Exception as e:
         logging.exception("❌ Sales ETL failed")
         
